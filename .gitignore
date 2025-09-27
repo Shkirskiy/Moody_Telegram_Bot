@@ -59,3 +59,28 @@ Thumbs.db
 tmp/
 temp/
 *.tmp
+
+# Bot Service Files (for running as a service)
+# Shell scripts for bot management
+moody_bot_start.sh
+moody_bot_stop.sh
+moody_bot_status.sh
+start_bot_auto.sh
+run_bot.sh
+bot_start.sh
+bot_stop.sh
+bot_restart.sh
+bot_status.sh
+
+# Python wrapper scripts
+run_bot_wrapper.py
+
+# LaunchAgent/LaunchDaemon plist files
+*.plist
+local.moody.telegram.bot.plist
+
+# Virtual environment for the bot service
+moody_bot/
+
+# Service-specific documentation
+BOT_SERVICE_README.md

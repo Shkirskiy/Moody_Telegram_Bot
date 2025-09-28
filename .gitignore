@@ -78,9 +78,15 @@ run_bot_wrapper.py
 # LaunchAgent/LaunchDaemon plist files
 *.plist
 local.moody.telegram.bot.plist
+com.moody.telegram.bot.plist
+
+# AppleScript automation files
+MoodyBotStarter.applescript
+MoodyBotStarter.app/
 
 # Virtual environment for the bot service
 moody_bot/
 
 # Service-specific documentation
 BOT_SERVICE_README.md
+AUTO_START_SETUP.md

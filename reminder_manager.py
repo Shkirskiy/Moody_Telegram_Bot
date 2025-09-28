@@ -380,25 +380,17 @@ Take a moment to process today's experiences! ✨"""
                 logger.warning("Report manager not set, cannot schedule weekly reports")
                 return
             
-            # Schedule Sunday evening report generation (22:30 UTC)
-            # This is after most evening check-ins should be completed
-            self.scheduler.add_job(
-                self._generate_weekly_reports,
-                CronTrigger(day_of_week=6, hour=22, minute=30, timezone=pytz.UTC),  # Sunday 22:30 UTC
-                id="weekly_reports_sunday",
-                replace_existing=True
-            )
-            
-            # Schedule Monday morning fallback (08:00 UTC)
-            # For users who didn't get reports on Sunday
+            # Schedule Monday morning fallback only (08:00 UTC)
+            # For users who didn't complete Sunday evening session
+            # Reports are now generated immediately after Sunday evening completion
             self.scheduler.add_job(
                 self._generate_weekly_reports,
                 CronTrigger(day_of_week=0, hour=8, minute=0, timezone=pytz.UTC),  # Monday 08:00 UTC
-                id="weekly_reports_monday",
+                id="weekly_reports_monday_fallback",
                 replace_existing=True
             )
             
-            logger.info("Scheduled weekly report generation (Sunday 22:30 UTC and Monday 08:00 UTC)")
+            logger.info("Scheduled weekly report generation fallback (Monday 08:00 UTC for users who didn't complete Sunday evening)")
             
         except Exception as e:
             logger.error(f"Error scheduling weekly reports: {e}")

@@ -60,6 +60,7 @@ class MentalHealthBot:
             self.application.add_handler(CommandHandler("stats", self.stats_command))
             self.application.add_handler(CommandHandler("weekly_reports", self.weekly_reports_command))
             self.application.add_handler(CommandHandler("admin_stats", self.admin_stats_command))
+            self.application.add_handler(CommandHandler("generate_report", self.generate_report_command))
             self.application.add_handler(CommandHandler("settings", self.settings_command))
             self.application.add_handler(CommandHandler("reminders", self.reminders_command))
             self.application.add_handler(CommandHandler("output_data", self.output_data_command))
@@ -482,6 +483,83 @@ Take care of yourself! 💚"""
             
         except Exception as e:
             await handle_error(update, context, f"Error in output_data command: {e}")
+    
+    async def generate_report_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle /generate_report command - manual trigger for weekly report (admin only)"""
+        try:
+            user_id = update.effective_user.id
+            
+            # Check if user is admin
+            if user_id != ADMIN_USER_ID:
+                await safe_message_send(
+                    update,
+                    "🚫 <b>Access Denied</b>\n\nThis command is restricted to administrators only.",
+                    parse_mode='HTML'
+                )
+                log_user_action(update, "GENERATE_REPORT_DENIED")
+                return
+            
+            log_user_action(update, "GENERATE_REPORT_COMMAND")
+            
+            # Check if report should be generated
+            should_generate, reason, week_start = report_manager.should_generate_report(user_id)
+            
+            if not should_generate:
+                await safe_message_send(
+                    update,
+                    f"""📊 <b>Weekly Report Generation</b>
+
+❌ Cannot generate report at this time.
+
+<b>Reason:</b> {reason}
+
+Your report will be generated automatically when conditions are met.""",
+                    parse_mode='HTML'
+                )
+                return
+            
+            # Notify that generation is starting
+            await safe_message_send(
+                update,
+                f"""📊 <b>Generating Weekly Report...</b>
+
+⏳ Creating your personalized AI report for week starting {week_start}.
+
+This may take a few seconds...""",
+                parse_mode='HTML'
+            )
+            
+            # Generate the report
+            success, result = await report_manager.generate_weekly_report(user_id, week_start)
+            
+            if success:
+                # Notify success and display report
+                await safe_message_send(
+                    update,
+                    """✅ <b>Report Generated Successfully!</b>
+
+Your weekly report is ready. Displaying it now...""",
+                    parse_mode='HTML'
+                )
+                
+                # Display the report
+                await self._display_weekly_report(update, user_id, week_start)
+            else:
+                # Notify failure
+                await safe_message_send(
+                    update,
+                    f"""❌ <b>Report Generation Failed</b>
+
+Unfortunately, there was an error generating your report:
+
+{result}
+
+The system will automatically retry later.""",
+                    parse_mode='HTML'
+                )
+            
+        except Exception as e:
+            await handle_error(update, context, f"Error in generate report command: {e}")
     
     async def admin_stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /admin_stats command - restricted to admin user only"""
@@ -1103,10 +1181,68 @@ Take care of yourself! 💚"""
             
             log_user_action(update, f"COMPLETED_SESSION", session.session_type)
             
+            # Check if this was Sunday evening session - trigger report generation
+            if session.session_type == "evening":
+                from datetime import datetime
+                import pytz
+                
+                # Get user's timezone and check if it's Sunday
+                user_tz = pytz.timezone(preferences.get("timezone", "Europe/Paris"))
+                current_user_time = datetime.now(user_tz)
+                
+                # Check if it's Sunday (weekday() returns 6 for Sunday)
+                if current_user_time.weekday() == 6:
+                    # Check if report should be generated
+                    should_generate, reason, week_start = report_manager.should_generate_report(user_id)
+                    
+                    if should_generate:
+                        # Notify user that report is being generated
+                        await safe_message_send(
+                            update,
+                            """📊 <b>Generating Your Weekly Report...</b>
+
+🎉 Congratulations on completing your week! 
+
+⏳ I'm now analyzing your data and creating your personalized AI report. This will take just a few seconds...""",
+                            parse_mode='HTML'
+                        )
+                        
+                        # Generate report asynchronously
+                        asyncio.create_task(self._generate_and_notify_report(user_id, week_start))
+                        
+                        logger.info(f"Triggered weekly report generation for user {user_id} after Sunday evening completion")
+            
         except Exception as e:
             logger.error(f"Error completing session: {e}")
             await safe_message_send(update, "✅ Session completed, but there was an error saving. Please try again.")
             raise
+    
+    async def _generate_and_notify_report(self, user_id: int, week_start: str) -> None:
+        """Generate weekly report and notify user when ready"""
+        try:
+            # Generate the report
+            success, result = await report_manager.generate_weekly_report(user_id, week_start)
+            
+            if success:
+                # Notify user that report is ready
+                await self.application.bot.send_message(
+                    chat_id=user_id,
+                    text="""✅ <b>Your Weekly Report is Ready!</b>
+
+📊 Your personalized AI-powered weekly insights have been generated.
+
+Use /weekly_reports to view your report now, or check it later at your convenience.
+
+Great job completing this week! 🌟""",
+                    parse_mode='HTML'
+                )
+                logger.info(f"Successfully generated and notified user {user_id} about weekly report")
+            else:
+                # Log the error but don't notify user - the fallback will handle it
+                logger.error(f"Failed to generate immediate report for user {user_id}: {result}")
+                
+        except Exception as e:
+            logger.error(f"Error in generate_and_notify_report for user {user_id}: {e}")
     
     async def _display_weekly_report(self, update: Update, user_id: int, week_start: str) -> None:
         """Display a weekly report with navigation"""

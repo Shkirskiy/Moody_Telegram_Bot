@@ -133,6 +133,7 @@ class MentalHealthBot:
 • <code>/help</code> - Show this comprehensive guide
 • <code>/stats</code> - View detailed usage statistics
 • <code>/weekly_reports</code> - Browse AI-powered weekly insights
+• <code>/generate_report</code> - Generate current week's AI report manually
 • <code>/output_data</code> - Export all your data to CSV (once per week limit)
 • <code>/settings</code> - Configure reminders, timezone & preferences
 • <code>/reminders</code> - Quick toggle reminders on/off
@@ -484,20 +485,11 @@ Take care of yourself! 💚"""
         except Exception as e:
             await handle_error(update, context, f"Error in output_data command: {e}")
     
+    @authorized_only
     async def generate_report_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle /generate_report command - manual trigger for weekly report (admin only)"""
+        """Handle /generate_report command - manual trigger for weekly report"""
         try:
             user_id = update.effective_user.id
-            
-            # Check if user is admin
-            if user_id != ADMIN_USER_ID:
-                await safe_message_send(
-                    update,
-                    "🚫 <b>Access Denied</b>\n\nThis command is restricted to administrators only.",
-                    parse_mode='HTML'
-                )
-                log_user_action(update, "GENERATE_REPORT_DENIED")
-                return
             
             log_user_action(update, "GENERATE_REPORT_COMMAND")
             

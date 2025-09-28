@@ -55,22 +55,22 @@ class ReportManager:
             Tuple of (should_generate, reason, week_start_date)
         """
         try:
-            # Get previous week dates
-            previous_week_start = self.get_previous_week_start()
+            # Get current week dates
+            current_week_start = self.get_current_week_start()
             
-            # Check if report already exists for previous week
-            existing_report = self.data_handler.get_weekly_report(user_id, previous_week_start)
+            # Check if report already exists for current week
+            existing_report = self.data_handler.get_weekly_report(user_id, current_week_start)
             if existing_report:
-                return False, "Report already exists for previous week", previous_week_start
+                return False, "Report already exists for current week", current_week_start
             
-            # Check if there's sufficient data for previous week
-            week_sessions = self.data_handler.get_week_sessions(user_id, previous_week_start)
+            # Check if there's sufficient data for current week
+            week_sessions = self.data_handler.get_week_sessions(user_id, current_week_start)
             is_sufficient, days_count, message = self.ai_service.validate_data_sufficiency(week_sessions)
             
             if not is_sufficient:
-                return False, message, previous_week_start
+                return False, message, current_week_start
             
-            return True, f"Ready to generate report ({days_count} days of data)", previous_week_start
+            return True, f"Ready to generate report ({days_count} days of data)", current_week_start
             
         except Exception as e:
             logger.error(f"Error checking if report should be generated: {e}")

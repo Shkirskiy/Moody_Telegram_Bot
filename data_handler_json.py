@@ -136,15 +136,21 @@ class DataHandler:
             logger.error(f"Failed to get user sessions: {e}")
             return []
     
-    def get_today_sessions(self, user_id: int) -> Dict[str, Optional[Dict[str, Any]]]:
+    def get_today_sessions(self, user_id: int, user_timezone: str = None) -> Dict[str, Optional[Dict[str, Any]]]:
         """
-        Get today's sessions for a user
-        
+        Get today's sessions for a user (timezone-aware)
+
         Returns:
             Dictionary with 'morning' and 'evening' keys, values are session data or None
         """
         try:
-            today = datetime.now().strftime("%Y-%m-%d")
+            # Use user timezone if provided, otherwise use system time
+            if user_timezone:
+                import pytz
+                tz = pytz.timezone(user_timezone)
+                today = datetime.now(tz).strftime("%Y-%m-%d")
+            else:
+                today = datetime.now().strftime("%Y-%m-%d")
             data = self.load_data()
             
             today_sessions = {"morning": None, "evening": None}

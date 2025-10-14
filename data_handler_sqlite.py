@@ -339,10 +339,16 @@ class SQLiteDataHandler:
             logger.error(f"Failed to get user sessions: {e}")
             return []
     
-    def get_today_sessions(self, user_id: int) -> Dict[str, Optional[Dict[str, Any]]]:
-        """Get today's sessions for a user"""
+    def get_today_sessions(self, user_id: int, user_timezone: str = None) -> Dict[str, Optional[Dict[str, Any]]]:
+        """Get today's sessions for a user (timezone-aware)"""
         try:
-            today = datetime.now().strftime("%Y-%m-%d")
+            # Use user timezone if provided, otherwise use system time
+            if user_timezone:
+                import pytz
+                tz = pytz.timezone(user_timezone)
+                today = datetime.now(tz).strftime("%Y-%m-%d")
+            else:
+                today = datetime.now().strftime("%Y-%m-%d")
             
             with self._get_connection() as conn:
                 cursor = conn.cursor()

@@ -24,6 +24,7 @@ class ReminderManager:
         self.scheduler = None
         self.reminder_callback = None
         self.report_manager = None  # Will be set during initialization
+        self._last_reminder_sent = {}  # Track last reminder sent: {(user_id, type): timestamp}
         
     async def initialize(self, reminder_callback: Callable):
         """Initialize the reminder scheduler"""
@@ -36,8 +37,8 @@ class ReminderManager:
             }
             
             job_defaults = {
-                'coalesce': False,
-                'max_instances': 3
+                'coalesce': True,  # Coalesce missed runs into single execution
+                'max_instances': 1  # Only one instance per job to prevent duplicates
             }
             
             self.scheduler = AsyncIOScheduler(
@@ -201,17 +202,30 @@ class ReminderManager:
     async def _send_reminder(self, user_id: int, reminder_type: str) -> None:
         """Send a reminder to the user"""
         try:
-            # Check if user has already completed today's session
-            today_sessions = self.data_handler.get_today_sessions(user_id)
-            
+            # Deduplication check: prevent duplicate reminders within 5 minutes
+            reminder_key = (user_id, reminder_type)
+            current_time = datetime.now()
+
+            if reminder_key in self._last_reminder_sent:
+                last_sent = self._last_reminder_sent[reminder_key]
+                time_diff = (current_time - last_sent).total_seconds()
+
+                if time_diff < 300:  # 5 minutes = 300 seconds
+                    logger.info(f"Skipping duplicate {reminder_type} reminder for user {user_id} (sent {time_diff:.0f}s ago)")
+                    return
+
+            # Get user preferences for timezone
+            preferences = self.get_user_preferences(user_id)
+            user_tz_str = preferences.get("timezone", "Europe/Paris")
+            user_tz = pytz.timezone(user_tz_str)
+
+            # Check if user has already completed today's session (timezone-aware)
+            today_sessions = self.data_handler.get_today_sessions(user_id, user_tz_str)
+
             # Don't send reminder if session already completed
             if today_sessions.get(reminder_type) is not None:
                 logger.info(f"Session {reminder_type} already completed for user {user_id}, skipping reminder")
                 return
-            
-            # Get user preferences for timezone
-            preferences = self.get_user_preferences(user_id)
-            user_tz = pytz.timezone(preferences.get("timezone", "Europe/Paris"))
             current_user_time = datetime.now(user_tz)
             
             # Create smart reminder message and keyboard
@@ -220,8 +234,10 @@ class ReminderManager:
             # Send reminder using the callback
             if self.reminder_callback:
                 await self.reminder_callback(user_id, message, keyboard)
+                # Record successful send time for deduplication
+                self._last_reminder_sent[reminder_key] = current_time
                 logger.info(f"Sent {reminder_type} reminder to user {user_id}")
-            
+
         except Exception as e:
             logger.error(f"Error sending {reminder_type} reminder to user {user_id}: {e}")
     

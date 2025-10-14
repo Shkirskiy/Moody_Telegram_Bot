@@ -172,9 +172,9 @@ class DataHandler:
         """Get user sessions from the last N days"""
         return self.backend.get_user_sessions(user_id, days)
     
-    def get_today_sessions(self, user_id: int) -> Dict[str, Optional[Dict[str, Any]]]:
-        """Get today's sessions for a user"""
-        return self.backend.get_today_sessions(user_id)
+    def get_today_sessions(self, user_id: int, user_timezone: str = None) -> Dict[str, Optional[Dict[str, Any]]]:
+        """Get today's sessions for a user (timezone-aware)"""
+        return self.backend.get_today_sessions(user_id, user_timezone)
     
     def get_stats(self, user_id: int) -> Dict[str, Any]:
         """Get basic statistics for a user"""
